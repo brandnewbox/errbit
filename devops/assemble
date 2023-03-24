@@ -1,0 +1,126 @@
+#!/bin/bash -e
+#
+# S2I assemble script for the 'bnb-ruby-2.4.0' image.
+# The 'assemble' script builds your application source so that it is ready to run.
+#
+# For more information refer to the documentation:
+#	https://github.com/openshift/source-to-image/blob/master/docs/builder_image.md
+#
+
+# If the 'bnb-ruby-2.4.0' assemble script is executed with the '-h' flag, print the usage.
+if [[ "$1" == "-h" ]]; then
+	exec /usr/libexec/s2i/usage
+fi
+
+function rake_assets_precompile() {
+  echo "---> Checking asset compilation requirements ..."
+  [[ "$DISABLE_ASSET_COMPILATION" == "true" ]] && return
+  [ ! -f Gemfile ] && return
+  [ ! -f Rakefile ] && return
+  # Sometimes the `rake` command fails, but that error message is swallowed up as part of the
+  # pipeline and the image continues to build. This explicitly finds out if the rake command
+  # fails and fails the build.
+  RAKES=$(bundle exec 'rake -T' 2>&1)
+  RAKE_EXIT_CODE=$?
+  # Nonzero exit code means if statement is true
+  if [ $RAKE_EXIT_CODE -ne 0 ]
+  then
+    return 1
+  fi
+  ! ( echo $RAKES | grep "assets:precompile" >/dev/null) && return
+
+  echo "---> Starting asset compilation ..."
+  bundle exec rake RAILS_COMPILING_ASSETS=1 SECRET_KEY_BASE=dummytoken assets:precompile
+}
+
+export RACK_ENV=${RACK_ENV:-"production"}
+
+if [ -n "$RUBYGEM_MIRROR" ]; then
+  bundle config mirror.https://rubygems.org $RUBYGEM_MIRROR
+fi
+
+shopt -s dotglob
+echo "---> Installing application source ..."
+mv /tmp/src/* ./
+
+echo "---> Checking build artifacts (vendor/bundle)..."
+if [ "$(ls /tmp/artifacts/bundle 2>/dev/null)" ]; then
+    echo "---> Restoring build artifacts (vendor/bundle)..."
+    mkdir -p vendor/bundle
+    mv /tmp/artifacts/bundle/* vendor/bundle/
+fi
+
+# December 6, 2017
+# Adding back in. The problem was in a cached file on the 
+# AWS CloudFront. And since we are now moving to our own
+# nginx-cache service for assets, we should be able to
+# avoid these kinds of problems in the future....
+#   > December 5, 2017
+#   > Currently sprockets is not honoring Rails.application.config.assets.version
+#   > The other problem Nate is having with this is that it 
+#   > never purges old assets. They just keep getting added
+#   > and copied and added and copied and...
+echo "---> Checking build artifacts (public/assets)..."
+if [ "$(ls /tmp/artifacts/assets 2>/dev/null)" ]; then
+    echo "---> Restoring build artifacts (public/assets)..."
+    mkdir -p public/assets
+    mv /tmp/artifacts/assets/* public/assets/
+fi
+
+echo "---> Checking build artifacts (tmp/cache)..."
+if [ "$(ls /tmp/artifacts/cache 2>/dev/null)" ]; then
+    echo "---> Restoring build artifacts (tmp/cache)..."
+    mkdir -p tmp/cache
+    mv /tmp/artifacts/cache/* tmp/cache/
+fi
+
+echo "---> Checking build artifacts (node_modules)..."
+if [ "$(ls /tmp/artifacts/node_modules 2>/dev/null)" ]; then
+    echo "---> Restoring build artifacts (node_modules)..."
+    mkdir -p node_modules
+    mv /tmp/artifacts/node_modules/* node_modules/
+fi
+
+echo "---> Building your Ruby application from source ..."
+if [ -f Gemfile ]; then
+  ADDTL_BUNDLE_ARGS=""
+  if [ -f Gemfile.lock ]; then
+    ADDTL_BUNDLE_ARGS="--deployment"
+  fi
+
+  if [[ "$RAILS_ENV" == "development" || "$RACK_ENV" == "development" ]]; then
+    BUNDLE_WITHOUT=${BUNDLE_WITHOUT:-"test"}
+  elif [[ "$RAILS_ENV" == "test" || "$RACK_ENV" == "test" ]]; then
+    BUNDLE_WITHOUT=${BUNDLE_WITHOUT:-"development"}
+  else
+    BUNDLE_WITHOUT=${BUNDLE_WITHOUT:-"development:test"}
+  fi
+
+  if [ -n "$BUNDLE_WITHOUT" ]; then
+    ADDTL_BUNDLE_ARGS+=" --without $BUNDLE_WITHOUT"
+  fi
+
+  echo "---> Running 'bundle install ${ADDTL_BUNDLE_ARGS}' ..."
+  bundle install ${ADDTL_BUNDLE_ARGS}
+
+  echo "---> Cleaning up unused ruby gems ..."
+  bundle clean -V
+fi
+
+if ! bundle exec rackup -h &>/dev/null; then
+  echo "WARNING: Rubygem Rack is not installed in the present image."
+  echo "         Add rack to your Gemfile in order to start the web server."
+fi
+
+if [[ "$RAILS_ENV" == "production" || "$RACK_ENV" == "production" ]]; then
+  rake_assets_precompile
+fi
+
+# Make the ./tmp folder world writeable as Rails or other frameworks might use
+# it to store temporary data (uploads/cache/sessions/etcd).
+# The ./db folder has to be writeable as well because when Rails complete the
+# migration it writes the schema version into ./db/schema.db
+set +e
+[[ -d ./tmp ]] && chgrp -R 0 ./tmp && chmod -R g+rw ./tmp
+[[ -d ./db ]] && chgrp -R 0 ./db && chmod -R g+rw ./db
+set -e
