@@ -1,4 +1,6 @@
+let og_auth_token = $("#problem_table input[name=\"authenticity_token\"]").val()
 $("#problem_table").empty().append("#{escape_javascript(render('problems/table', :problems => problems))}");
+$("#problem_table input[name=\"authenticity_token\"]").val(og_auth_token)
 $("#flash-messages").empty();
 toggleProblemsCheckboxes();
 bindProblemButtonsActions();
