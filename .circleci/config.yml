@@ -1,63 +1,93 @@
 version: 2.1
-commands:
-  restore_caches:
-    steps:
-      - restore_cache:
-          keys:
-            - rubygems-{{ checksum "_rubygems_cache_key" }}-{{ checksum "Gemfile.lock" }}
-            - rubygems-{{ checksum "_rubygems_cache_key" }}-
-  create_cache_key_files:
-    steps:
-      - run: echo $CIRCLECI_RUBYGEMS_CACHE_KEY
-      - run:
-          name: Write the rubygems cache key to a file
-          command: |
-            echo $CIRCLECI_RUBYGEMS_CACHE_KEY > _rubygems_cache_key
-            cat _rubygems_cache_key
-  save_caches:
-    steps:
-      - save_cache:
-          paths:
-            - vendor
-          key: rubygems-{{ checksum "_rubygems_cache_key" }}-{{ checksum "Gemfile.lock" }}
-  install_gems:
-    steps:
-      - run: gem update --system "$RUBYGEMS_VERSION"
-      - run: gem install bundler --version "$BUNDLER_VERSION" --force
-      - run: bundle config set clean true --local
-      - run: bundle config set jobs 4 --local
-      - run: bundle config set path vendor/bundle --local
-      - run: bundle config set retry 3 --local
-      - run: bundle install
+orbs:
+  drydock: brandnewbox/drydock@2.0.4
+parameters:
+  registry:
+    type: string
+    default: registry.digitalocean.com
+  builder-image:
+    type: string
+    default: brandnewbox/errbit-builder
+  final-image:
+    type: string
+    default: brandnewbox/errbit
+  rancher-context:
+    type: string
+    default: 'c-tmnrk:p-l87zj'
+  rancher-namespace:
+    type: string
+    default: errbit
+  working-directory:
+    type: string
+    default: /home/bnb/app
+workflows:
+  devops_flow:
+    jobs:
+      - drydock/run-danger:
+          context: GITHUB
+      - drydock/build-and-push:
+          name: build-and-push-builder
+          built-image: << pipeline.parameters.registry >>/<< pipeline.parameters.builder-image >>:${CIRCLE_SHA1}
+          build-target: production-builder
+          working-directory: << pipeline.parameters.working-directory >>
+          cache-assets: true
+          cache-packs: false
+          docker-version: default
+          build-args: >-
+            --build-arg RAILS_MASTER_KEY=${RAILS_PRODUCTION_KEY}
+            --build-arg RAILS_ENV=production
+          context: DO_BNB_REGISTRY
+      - test:
+          image: << pipeline.parameters.registry >>/<< pipeline.parameters.builder-image >>:${CIRCLE_SHA1}
+          context: DO_BNB_REGISTRY
+          requires:
+            - build-and-push-builder
+      - drydock/build-and-push:
+          name: build-and-push-production
+          built-image: << pipeline.parameters.registry >>/<< pipeline.parameters.final-image >>:${CIRCLE_SHA1}
+          build-target: production
+          working-directory: << pipeline.parameters.working-directory >>
+          cache-assets: true
+          cache-packs: false
+          docker-version: default
+          build-args: >-
+            --build-arg RAILS_MASTER_KEY=${RAILS_PRODUCTION_KEY}
+            --build-arg RAILS_ENV=production
+          context: DO_BNB_REGISTRY
+          filters:
+            branches:
+              only: /^(main)$/
+          requires:
+            - build-and-push-builder
+      - drydock/create-deployment:
+          name: puma-deployment
+          rancher-deployment: errbit-deployment
+          rancher-container: errbit-container
+          rancher-namespace: << pipeline.parameters.rancher-namespace >>
+          rancher-context: << pipeline.parameters.rancher-context >>
+          image: << pipeline.parameters.registry >>/<< pipeline.parameters.final-image >>:${CIRCLE_SHA1}
+          context: DO_BNB_REGISTRY
+          filters:
+            branches:
+              only: /^(main)$/
+          requires:
+            - build-and-push-production
+            - test
 jobs:
-  mongo-ruby:
-    environment:
-      CIRCLECI_RUBYGEMS_CACHE_KEY: '2022060600'
-      RUBYGEMS_VERSION: 3.3.21
-      BUNDLER_VERSION: 2.3.21
+  test:
     parameters:
-      mongo_version:
+      image:
+        description: The image to test
         type: string
     docker:
-      - image: cimg/ruby:2.7.6-browsers
-      - image: circleci/mongo:<< parameters.mongo_version >>-ram
+      - image: << parameters.image >>
+        auth:
+          username: $PRIVATE_REGISTRY_USERNAME
+          password: $PRIVATE_REGISTRY_PASSWORD
+        environment:
+          RAILS_ENV: test
+          MONGO_URL: mongodb://localhost:27017/my_database
+      - image: circleci/mongo:4
+    working_directory: << pipeline.parameters.working-directory >>
     steps:
-      - checkout
-      - create_cache_key_files
-      - restore_caches
-      - install_gems
-      - save_caches
-      - run: ruby -v
-      - run: gem -v
-      - run: bundle -v
-      - run: bundle exec rubocop -v
-      - run: bundle exec rake errbit:bootstrap
-      - run: bundle exec rspec
-      - run: bundle exec rubocop
-workflows:
-  workflow:
-    jobs:
-      - mongo-ruby:
-          matrix:
-            parameters:
-              mongo_version: ["4.0", "4.2", "4.4", "5.0"]
+      - drydock/default-test-steps

@@ -1,0 +1,70 @@
+x-app: &app
+  build:
+    context: ../
+    dockerfile: .dockerdev/Dockerfile
+    target: development
+    args:
+      UID: ${UID:-1000}
+  image: errbit:1.0.0
+  user: bnb
+  environment: &env
+    NODE_ENV: ${NODE_ENV:-development}
+  tmpfs:
+    - /tmp:uid=${UID:-1000}
+    - /app/tmp/pids:uid=${UID:-1000}
+
+x-backend: &backend
+  <<: *app
+  stdin_open: true
+  tty: true
+  volumes:
+    - ..:/app:cached
+    - bundle:/usr/local/bundle
+    - rails_cache:/app/tmp/cache
+    - node_modules:/app/node_modules
+    - history:/usr/local/hist
+    - ./.psqlrc:/root/.psqlrc:ro
+    - ./.bashrc:/root/.bashrc:ro
+  environment: &backend_environment
+    <<: *env
+    MONGO_URL: mongodb://mongodb:27017/errbit
+    WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
+    BOOTSNAP_CACHE_DIR: /usr/local/bundle/_bootsnap
+    XDG_DATA_HOME: /app/tmp/cache
+    YARN_CACHE_FOLDER: /app/node_modules/.yarn-cache
+    HISTFILE: /usr/local/hist/.bash_history
+    PSQL_HISTFILE: /usr/local/hist/.psql_history
+    IRB_HISTFILE: /usr/local/hist/.irb_history
+    EDITOR: vi
+
+services:
+  rails:
+    <<: *backend
+    command: bundle exec rails server -b 0.0.0.0
+    env_file:
+      - ../.docker-development-vars
+    ports:
+      - '3000:3000'
+
+  maildev:
+    image: djfarrelly/maildev
+    ports:
+      - "3001:80"
+  mongodb:
+    image: mongo
+    volumes:
+      - mongo_data:/data/db
+
+  standardrb:
+    <<: *backend
+    command: bundle exec standardrb
+    profiles:
+      - lint
+    network_mode: "host"
+
+volumes:
+  bundle:
+  node_modules:
+  history:
+  rails_cache:
+  mongo_data:
