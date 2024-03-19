@@ -147,10 +147,6 @@ RUN mkdir $BUNDLE_PATH \
   && rm -rf $BUNDLE_PATH/ruby/3.1.0/cache/* \
   && rm -rf /home/bnb/.bundle/cache/*
 
-# Install JS packages
-COPY --chown=bnb:bnb package.json yarn.lock ./
-RUN yarn install --check-files
-
 # Copy code
 COPY --chown=bnb:bnb . .
 
