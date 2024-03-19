@@ -92,7 +92,7 @@ jobs:
     steps:
       - run: 
           name: Install Test Env Gems
-          command: RAILS_MASTER_KEY=$<< parameters.credentials-key-env-var >> bundle install --with=test
+          command: bundle install --with=test
           # We have to specify --with=test because the builder image is configured without test and dev
       - run:
           name: Run Tests
@@ -100,7 +100,7 @@ jobs:
             mkdir /tmp/test-results
             TEST_FILES="$(circleci tests glob "spec/**/*_spec.rb" | \
               circleci tests split --split-by=timings)"
-            RAILS_MASTER_KEY=$<< parameters.credentials-key-env-var >> bundle exec rspec \
+            bundle exec rspec \
               --format progress \
               --format RspecJunitFormatter \
               --out /tmp/test-results/rspec.xml \
