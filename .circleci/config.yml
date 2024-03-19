@@ -1,6 +1,6 @@
 version: 2.1
 orbs:
-  drydock: brandnewbox/drydock@dev:base-image
+  drydock: brandnewbox/drydock@dev:alpha
 parameters:
   registry:
     type: string
