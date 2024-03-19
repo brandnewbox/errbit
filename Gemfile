@@ -88,6 +88,7 @@ group :test do
   gem 'email_spec'
   gem 'timecop'
   gem 'coveralls', require: false
+  gem "rspec_junit_formatter"
 end
 
 gem 'puma', '3.9.0'
