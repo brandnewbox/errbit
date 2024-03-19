@@ -32,7 +32,7 @@ mongo_url:                 %w(MONGODB_URI MONGOLAB_URI MONGOHQ_URL MONGODB_URL M
 
 # github
 github_url:                ['GITHUB_URL', lambda do |values|
-  values[:github_url].gsub(%r{/*\z}, '')
+  values[:github_url]&.gsub(%r{/*\z}, '')
 end],
 github_authentication:     ['GITHUB_AUTHENTICATION'],
 github_client_id:          ['GITHUB_CLIENT_ID'],

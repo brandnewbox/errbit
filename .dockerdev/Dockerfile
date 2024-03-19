@@ -136,11 +136,11 @@ ENV RAILS_ENV=$RAILS_ENV \
   GEM_HOME=/home/bnb/bundle
 
 # Install Ruby gems
-COPY --chown=bnb:bnb Gemfile Gemfile.lock ./
+COPY --chown=bnb:bnb Gemfile Gemfile.lock .ruby-version ./
 RUN mkdir $BUNDLE_PATH \
   && bundle config --local deployment 'true' \
   && bundle config --local path "${BUNDLE_PATH}" \
-  && bundle config --local without 'development test' \
+  && bundle config --local without 'development test no_docker' \
   && bundle config --local clean 'true' \
   && bundle config --local no-cache 'true' \
   && bundle install --jobs=${BUNDLE_JOBS} \
@@ -154,7 +154,7 @@ COPY --chown=bnb:bnb . .
 # NOTE: The command may require adding some environment variables (e.g., SECRET_KEY_BASE) if you're not using
 # credentials.
 ARG RAILS_MASTER_KEY
-RUN RAILS_MASTER_KEY=$RAILS_MASTER_KEY bundle exec rails assets:precompile
+RUN RAILS_MASTER_KEY=$RAILS_MASTER_KEY SECRET_KEY_BASE=foo DEVISE_MODULES=[omniauthable] bundle exec rails assets:precompile
 
 
 
