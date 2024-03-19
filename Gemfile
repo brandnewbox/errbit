@@ -90,10 +90,6 @@ group :test do
   gem 'coveralls', require: false
 end
 
-group :no_docker, :test, :development do
-  gem 'mini_racer', platform: :ruby # C Ruby (MRI) or Rubinius, but NOT Windows
-end
-
 gem 'puma', '3.9.0'
 gem 'sass-rails'
 gem 'uglifier'
