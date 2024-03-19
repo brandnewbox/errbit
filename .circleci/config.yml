@@ -86,7 +86,7 @@ jobs:
           password: $PRIVATE_REGISTRY_PASSWORD
         environment:
           RAILS_ENV: test
-          MONGO_URL: mongodb://localhost:27017/my_database
+          MONGO_URL: mongodb://localhost:27017
       - image: circleci/mongo:4
     working_directory: << pipeline.parameters.working-directory >>
     steps:
