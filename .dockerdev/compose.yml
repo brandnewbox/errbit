@@ -27,7 +27,7 @@ x-backend: &backend
     - ./.bashrc:/root/.bashrc:ro
   environment: &backend_environment
     <<: *env
-    MONGO_URL: mongodb://mongodb:27017/errbit
+    MONGO_URL: mongodb://mongodb:27017
     WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
     BOOTSNAP_CACHE_DIR: /usr/local/bundle/_bootsnap
     XDG_DATA_HOME: /app/tmp/cache
@@ -45,13 +45,15 @@ services:
       - ../.docker-development-vars
     ports:
       - '3000:3000'
+    depends_on:
+      - mongodb
 
   maildev:
     image: djfarrelly/maildev
     ports:
       - "3001:80"
   mongodb:
-    image: mongo
+    image: mongo:6
     volumes:
       - mongo_data:/data/db
 

@@ -87,7 +87,7 @@ jobs:
         environment:
           RAILS_ENV: test
           MONGO_URL: mongodb://localhost:27017
-      - image: circleci/mongo:4
+      - image: mongo:6
     working_directory: << pipeline.parameters.working-directory >>
     steps:
       - run: 
