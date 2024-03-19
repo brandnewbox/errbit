@@ -100,7 +100,7 @@ jobs:
             mkdir /tmp/test-results
             TEST_FILES="$(circleci tests glob "spec/**/*_spec.rb" | \
               circleci tests split --split-by=timings)"
-            DEVISE_MODULES=[omniauthable] SECRET_KEY_BASE=foo bundle exec rspec \
+            DEVISE_MODULES=[omniauthable,database_authenticatable] SECRET_KEY_BASE=foo bundle exec rspec \
               --format progress \
               --format RspecJunitFormatter \
               --out /tmp/test-results/rspec.xml \
