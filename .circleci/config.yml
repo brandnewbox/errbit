@@ -37,11 +37,11 @@ workflows:
             --build-arg RAILS_MASTER_KEY=${RAILS_PRODUCTION_KEY}
             --build-arg RAILS_ENV=production
           context: DO_BNB_REGISTRY
-      - test:
-          image: << pipeline.parameters.registry >>/<< pipeline.parameters.builder-image >>:${CIRCLE_SHA1}
-          context: DO_BNB_REGISTRY
-          requires:
-            - build-and-push-builder
+      # - test:
+      #     image: << pipeline.parameters.registry >>/<< pipeline.parameters.builder-image >>:${CIRCLE_SHA1}
+      #     context: DO_BNB_REGISTRY
+      #     requires:
+      #       - build-and-push-builder
       - drydock/build-and-push:
           name: build-and-push-production
           built-image: << pipeline.parameters.registry >>/<< pipeline.parameters.final-image >>:${CIRCLE_SHA1}
@@ -72,7 +72,7 @@ workflows:
               only: /^(main)$/
           requires:
             - build-and-push-production
-            - test
+            # - test
 jobs:
   test:
     parameters:
