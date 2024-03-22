@@ -39,7 +39,7 @@ github_client_id:          ['GITHUB_CLIENT_ID'],
 github_secret:             ['GITHUB_SECRET'],
 github_org_id:             ['GITHUB_ORG_ID'],
 github_access_scope:       ['GITHUB_ACCESS_SCOPE'],
-# github_api_url:            ['GITHUB_API_URL'],
+github_api_url:            ['GITHUB_API_URL'],
 # github_site_title:         ['GITHUB_SITE_TITLE'],
 # google
 google_authentication:     ['GOOGLE_AUTHENTICATION'],
