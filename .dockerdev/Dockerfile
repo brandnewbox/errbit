@@ -195,4 +195,4 @@ COPY --from=production-builder /home/bnb/app/public/assets /home/bnb/app/public/
 # 3) We can even copy the Bootsnap cache to speed up our Rails server load!
 COPY --chown=bnb:bnb --from=production-builder /home/bnb/app/tmp/cache/bootsnap* /home/bnb/app/tmp/cache/
 
-CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0"]
+CMD ["bundle", "exec", "puma", "-C", "config/puma.default.rb"]
